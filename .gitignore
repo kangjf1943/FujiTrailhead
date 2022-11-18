@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+File/
+ProcData/
+RawData/
+# Icon is a file for DropBox sync
+Icon\r
