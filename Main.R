@@ -8,6 +8,7 @@ library(dplyr)
 library(ggplot2)
 library(sf)
 library(tmap)
+library(parallel)
 library(showtext)
 
 # Setting ----
@@ -22,19 +23,18 @@ kDirMobileDt <-
 
 # read all the data 
 raw.mobile.file <- 
-  list.files(kDirMobileDt)
-# only keep the files of the mobile raw data
-raw.mobile.file <- 
-  raw.mobile.file[grepl("PDP_sophia_university", raw.mobile.file)]
+  list.files(kDirMobileDt) %>% 
+  # only keep the files of the mobile raw data
+  .[grepl("PDP_sophia_university", .)]
 
 # create a empty list to store the raw data
-raw.mobile <- vector("list", length = length(raw.mobile.file))
+raw.mobile <- mclapply(
+  raw.mobile.file, 
+  function(x) {read.csv(paste0(kDirMobileDt, "/", x))}, 
+  mc.cores = 4
+)
 names(raw.mobile) <- raw.mobile.file
-for (i in raw.mobile.file) {
-  raw.mobile[[i]] <- 
-    read.csv(paste0(kDirMobileDt, "/", i))
-}
-# bug: read data will take several seconds 
+# bug: though prallel saves 50% time, read data still take several seconds 
 # bug: need to check if the "dailyid" of each *.csv file are unique - checked, see Data_test.R
 
 # combine the raw data list into a data.frame
