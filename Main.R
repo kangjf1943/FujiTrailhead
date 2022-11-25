@@ -30,17 +30,37 @@ raw.mobile.file <-
 # create a empty list to store the raw data
 raw.mobile <- mclapply(
   raw.mobile.file, 
-  function(x) {read.csv(paste0(kDirMobileDt, "/", x))}, 
+  function(x) {
+    read.csv(paste0(kDirMobileDt, "/", x)) %>% 
+      # bug: delete the column "plmn" country code for now, since the column causes trouble to the following bind step because sometimes it is read as character while sometimes as number
+      select(-plmn)
+  }, 
   mc.cores = 4
-)
-names(raw.mobile) <- raw.mobile.file
-# bug: though prallel saves 50% time, read data still take several seconds 
-# bug: need to check if the "dailyid" of each *.csv file are unique - checked, see Data_test.R
+) 
+# bug: though parellel saves 50% time, read data still take several seconds 
+# test: check if the "dailyid" of each *.csv file are unique in the whole data set
+# test.raw.mobile <- raw.mobile
+# for (i in names(raw.mobile)) {
+#   test.raw.mobile[[i]]$file <- i
+# }
+# # bind to a data.frame
+# test.raw.mobile <- bind_rows(
+#   test.raw.mobile
+# )
+# # if each dailyid is unique not just within each day, but within the who data set, then the rows of the two summarized data.frames should be the same
+# test.raw.mobile %>% 
+#   group_by(dailyid) %>% 
+#   summarise(n = n()) %>% 
+#   ungroup() %>% 
+#   nrow()
+# test.raw.mobile %>% 
+#   group_by(file, dailyid) %>% 
+#   summarise(n = n()) %>% 
+#   ungroup() %>% 
+#   nrow()
 
 # combine the raw data list into a data.frame
-raw.mobile <- Reduce(rbind, raw.mobile) %>% 
-  tibble()
-# bug: again, the loop of rbind() takes a lot of time 
+raw.mobile <- bind_rows(rbind, raw.mobile)
 # take a look at the data
 str(raw.mobile)
 
@@ -93,7 +113,7 @@ GetWeather <- function(path, year, month) {
   return(weather)
 }
 
-weather <- Reduce(
+weather <- do.call(
   rbind, 
   list(GetWeather(path = "rn2ola000001lmmy.csv", "2018", "7"), 
        GetWeather(path = "rn2ola000001mlj3.csv", "2018", "8"), 
