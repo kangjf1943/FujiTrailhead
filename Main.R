@@ -60,7 +60,7 @@ raw.mobile <- mclapply(
 #   nrow()
 
 # combine the raw data list into a data.frame
-raw.mobile <- bind_rows(rbind, raw.mobile)
+raw.mobile <- bind_rows(raw.mobile)
 # take a look at the data
 str(raw.mobile)
 
