@@ -5,7 +5,9 @@
 library(openxlsx)
 library(stringr)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
+library(geojsonsf)
 library(sf)
 library(tmap)
 library(parallel)
@@ -124,25 +126,91 @@ weather <- do.call(
        GetWeather(path = "rn2ola0000023oly.csv", "2019", "8"))
 )
 
+## GIS layer ----
+yamashizu <- 
+  # data for all prefectures of Japan
+  geojson_sf("RawData/prefectures.geojson") %>% 
+  # get prefecture polygons of Yamanashi and Shizuoka
+  subset(name %in% c("山梨県", "静岡県")) %>% 
+  st_transform(kCRS) %>% 
+  # union the two prefectures 
+  st_union(yamashizu) %>% 
+  st_sf()
+
+# national parks within Yamanashi and Shizuoka
+nps.yamashizu <- 
+  st_read(dsn = "RawData/NationalPark/nps", layer = "nps_all") %>% 
+  st_transform(kCRS) %>% 
+  st_make_valid() %>% 
+  st_intersection(nps, yamashizu) %>% 
+  st_sf() %>% 
+  st_union() %>% 
+  st_sf()
+
 ## Fujisan data ----
 # including some location point and the mesh data 
 # location points
 mt.point <- 
   c(
-    "top", 35.36366366173027, 138.728149693833, 
-    "yoshida_nigoume", 35.41427110100272, 138.75632330450566, 
-    "須走口五合目", 35.366334964750806, 138.77849528374938
+    # 吉田ルート
+    "富士スバルライン五合目", 35.399470344873706, 138.73292894376618, 
+    # 須走ルート
+    "須走口五合目", 35.37328465282928, 138.7781878424484, 
+    # 御殿場ルート
+    "富士山御殿場口五合目第二駐車場", 35.34232696835412, 138.79570741613182, 
+    # 富士宮ルート
+    "Fujinomiya Trail 5th Station", 35.34093756327385, 138.7343889082398, 
+    # 终点
+    "淺間大社奧宮久須志神社", 35.36704931228424, 138.73300374779606, 
+    "富士山頂上浅間大社奥宮", 35.361003251911036, 138.73130911722052
   ) %>% 
   matrix(byrow = TRUE, ncol = 3) %>% 
   data.frame() %>% 
-  rename_with(~ c("location", "lat", "long")) %>% 
+  rename_with(
+    ~ c("location", "lat", "long")
+  ) %>% 
   st_as_sf(coords = c("long", "lat")) %>% 
   st_set_crs(kCRS)
 
-# read Fujisan mountain mesh data
-mesh.fujisan <- 
-  st_read(dsn = "RawData/G04-c-11_5338-jgd_GML", 
-          layer = "G04-c-11_5338-jgd_ElevationAndSlopeAngleFourthMesh")
+# range of the mountain top 
+# bug: the buffer distance can be flexible? 
+range.top <- data.frame(lat = 35.36366366173027, long = 138.728149693833) %>% 
+  st_as_sf(coords = c("long", "lat")) %>% 
+  st_set_crs(6668) %>%  
+  st_buffer(kCRS)
+
+# read mesh data where Fujisan located
+mesh.5338 <- st_read(
+  dsn = "RawData/Mesh/G04-a-11_5338-jgd_GML", 
+  layer = "G04-a-11_5338-jgd_ElevationAndSlopeAngleTertiaryMesh"
+) %>% 
+  st_set_crs(kCRS)
+
+# mesh where trail heads located 
+mesh.trail.head <- 
+  # bug: 须走五合目 is updated - reply to Kubo sensei
+  # 富士宮口 五合目（富士宮ルート）:３次メッシュ: 53380508
+  # 御殿場口新五合目（御殿場ルート）:３次メッシュ: 53380603
+  # 須走口五合目（須走ルート）:３次メッシュ: 53380642
+  # 富士スバルライン五合目（吉田ルート）:３次メッシュ: 53380578
+  subset(mesh.5338, G04a_001 %in% 
+           c("53380508", "53380603", "53380642", "53380578")) %>% 
+  mutate(head = case_when(
+    G04a_001 == "53380508" ~ "富士宮", 
+    G04a_001 == "53380603" ~ "御殿場", 
+    G04a_001 == "53380642" ~ "須走", 
+    G04a_001 == "53380578" ~ "吉田"
+  )) %>% 
+  st_transform(kCRS)
+
+# buffer zone for the trail head mesh
+# considering the uncertainty of the records 
+# bug: the range of the buffer? 
+mesh.trail.head.buff <- st_buffer(mesh.trail.head, 300)
+
+# mesh where top located 
+mesh.top <- 
+  subset(mesh.5338, G04a_001 == "53380538")
 
 ## Other ----
 # regions that prefectures belong to 
@@ -210,7 +278,8 @@ mob.pref.idnum <- day.pref.mobile %>%
 dim(mob.pref.idnum)
 
 # Analysis -----
-## General description -----
+## First round ----
+### General description -----
 # the distribution of the attributes 
 par(mfrow = c(2, 2))
 table(raw.mobile$gender) %>% plot(main = "gender")
@@ -218,8 +287,8 @@ table(raw.mobile$os) %>% plot(main = "os")
 table(raw.mobile$transportation_type) %>% plot(main = "transportation")
 hist(raw.mobile$speed, main = "speed")
 
-## Impact factor ----
-### Weekend and holiday ----
+### Impact factor ----
+#### Weekend and holiday ----
 ggplot(day.mobile) + 
   geom_col(aes(date, num, fill = wknd_hol)) + 
   facet_wrap(.~ year, scales = "free")
@@ -233,7 +302,7 @@ day.mobile %>%
   ungroup()
 # bug: though values show the diff, but might need a further statistical analysis for the comparison 
 
-### Weather ----
+#### Weather ----
 ggplot(day.mobile) + 
   geom_col(aes(date, num, fill = wthr)) + 
   facet_wrap(.~ year, scales = "free")
@@ -242,7 +311,7 @@ ggplot(day.mobile) +
   geom_boxplot(aes(wthr, num)) + 
   facet_wrap(.~ year, scales = "free")
 
-### Distance or cost ----
+#### Distance or cost ----
 # where do they come from: suppose most people come from surrounding areas
 day.pref.mobile %>% 
   group_by(home_prefcode) %>% 
@@ -261,7 +330,7 @@ day.pref.mobile %>%
 # bug: what to do with home_prefcode = NA?
 # bug: to visualize it with geo-sanky diagram
 
-## Climbing route ----
+### Climbing route ----
 gis.mobile <- 
   # turn raw data into simple feature for GIS analysis 
   st_as_sf(raw.mobile, coords = c("longitude", "latitude")) %>% 
@@ -298,7 +367,7 @@ gis.mobile %>%
   tm_layout(legend.outside = TRUE)
 # bug: maybe the best way to visualize the data is to calculate before mapping 
 
-## Evaluate the travel cost ----
+### Evaluate the travel cost ----
 # dailyid应该是每天会变化的，但是为了方便计算，先假设每天的ID代表了不同的人（这样一定会高估来的人，因为有很多人应该在爬山过程中会过夜，而在目前的数据下，由于他第二天ID会发生变化，就会被算成两个人。后期可以结合缓冲区和路线变化来校正，将相同的人员合并起来。
 
 # per capital cost ~ number of dailyid
@@ -323,3 +392,21 @@ mob.pref.idnum %>%
   ggplot() + 
   geom_col(aes(reorder(prefname, tot_cost), tot_cost)) + 
   coord_flip()
+
+## Second round ----
+### Layers for ranges ----
+zoom.bbox <- 
+  st_crop(yamashizu, xmin = 138.5, ymin = 35.3, xmax = 138.9, ymax = 35.5)
+tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) + 
+  tm_polygons(col = "#B4CCD2") + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(col = "#8ABDC9") + 
+  tm_shape(range.top) + 
+  tm_polygons(col = "#04819E") + 
+  tm_shape(mesh.trail.head.buff) + 
+  tm_polygons(col = "yellow") + 
+  tm_shape(mesh.trail.head) + 
+  tm_polygons(col = "orange") + 
+  tm_shape(mt.point) + 
+  tm_dots(col = "red")
+
