@@ -140,6 +140,7 @@ yamashizu <-
 # national parks within Yamanashi and Shizuoka
 nps.yamashizu <- 
   st_read(dsn = "RawData/NationalPark/nps", layer = "nps_all") %>% 
+  subset(名称 == "富士箱根伊豆") %>% 
   st_transform(kCRS) %>% 
   st_make_valid() %>% 
   st_intersection(nps, yamashizu) %>% 
@@ -410,3 +411,35 @@ tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) +
   tm_shape(mt.point) + 
   tm_dots(col = "red")
 
+# bug: to speed up, I take part of the raw data 
+# bug: actually I should transform the CRS at the very begining for gis.mobile rather than this raw data sample 
+gis.mobile.smp <- gis.mobile[1:50000, ] %>% 
+  st_transform(kCRS)
+
+gis.mobile.smp.group <- 
+  gis.mobile.smp %>% 
+  # 看各个点分布在哪个区
+  mutate(
+    top = as.logical(st_intersects(., range.top, sparse = FALSE)), 
+    trail = as.logical(st_intersects(., nps.yamashizu, sparse = FALSE)),
+    general = 
+      as.logical(st_intersects(., yamashizu %>% select(geometry), sparse = FALSE))
+  ) %>% 
+  # 根据点所落的位置判断用户所属组别
+  st_drop_geometry() %>% 
+  group_by(dailyid) %>% 
+  summarise(across(c(top, trail, general), sum)) %>% 
+  ungroup() %>% 
+  # bug: there are many dailyid do not intersect with all the range 
+  mutate(group = case_when(
+    top > 0 ~ "top", 
+    trail > 0 ~ "trail", 
+    TRUE ~ "general"
+  )) %>% 
+  select(dailyid, group)
+dim(gis.mobile.smp.group)
+table(gis.mobile.smp.group$group)
+
+# add group info to raw data 
+gis.mobile.smp <- gis.mobile.smp %>% 
+  left_join(gis.mobile.smp.group, by = "dailyid")
