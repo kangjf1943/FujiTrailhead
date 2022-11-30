@@ -443,3 +443,53 @@ table(gis.mobile.smp.group$group)
 # add group info to raw data 
 gis.mobile.smp <- gis.mobile.smp %>% 
   left_join(gis.mobile.smp.group, by = "dailyid")
+
+### Choice of trail head ----
+# for visitors climb the mountain: which trail head? 
+# get visitor climb the mountain from the sample data 
+# bug: that is the second sample data
+gis.mobile.smp.climb <- 
+  gis.mobile.smp %>% 
+  subset(group %in% c("trail", "top"))
+# bug: 虽然人大多在这些地方周边聚集，但是由于位置的不确定性，是否扩大mesh范围会更好呢？暂时不考虑串线问题：从一条线串到另一条线
+# get trail head choice for each visitor 
+gis.mobile.smp.climb.headgrp <- 
+  st_intersection(gis.mobile.smp.climb, mesh.trail.head) %>% 
+  st_drop_geometry() %>% 
+  tibble() %>% 
+  select(dailyid, head) %>% 
+  group_by(dailyid, head) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols = dailyid, names_from = head, 
+              values_from = n, values_fill = 0) %>% 
+  select(dailyid, 吉田, 富士宮, 御殿場, 須走) %>% 
+  mutate(route = case_when(
+    吉田 > 0 ~ "吉田", 
+    富士宮 > 0 ~ "富士宮", 
+    御殿場 > 0 ~ "御殿場", 
+    須走 > 0 ~ "須走" 
+  )) %>% 
+  select(dailyid, route)
+gis.mobile.smp.climb <- 
+  gis.mobile.smp.climb %>% 
+  left_join(gis.mobile.smp.climb.headgrp, by = "dailyid")
+
+# visualize the choice of trail head 
+zoom.bbox <- 
+  st_crop(yamashizu, xmin = 138.7, ymin = 35.32, xmax = 138.82, ymax = 35.42)
+tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) + 
+  tm_polygons(col = "#B4CCD2") + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(col = "#8ABDC9") + 
+  tm_shape(range.top) + 
+  tm_polygons(col = "#04819E") + 
+  tm_shape(mesh.trail.head) + 
+  tm_polygons(col = "orange") + 
+  tm_shape(gis.mobile.smp.climb) + 
+  tm_dots(
+    col = "route", alpha = 0.6, 
+    palette = c(吉田 = "yellow", 御殿場 = "brown", 須走 = "green", 富士宮 = "blue")
+  ) + 
+  tm_layout(legend.outside = TRUE)
+
