@@ -18,6 +18,9 @@ showtext_auto()
 
 # Read data ----
 ## Constant ----
+# default CRS for the project: JGD2011
+kCRS <- 6668
+# note: EPSG for JGD2000 is 4612
 kDirMobileDt <- 
   "RawData/Agoopの富士山のデータ/sophia_university_20180701_20190831"
 
@@ -134,7 +137,7 @@ mt.point <-
   data.frame() %>% 
   rename_with(~ c("location", "lat", "long")) %>% 
   st_as_sf(coords = c("long", "lat")) %>% 
-  st_set_crs(4269)
+  st_set_crs(kCRS)
 
 # read Fujisan mountain mesh data
 mesh.fujisan <- 
@@ -263,7 +266,7 @@ gis.mobile <-
   # turn raw data into simple feature for GIS analysis 
   st_as_sf(raw.mobile, coords = c("longitude", "latitude")) %>% 
   # add projection 
-  st_set_crs(4269)
+  st_set_crs(kCRS)
 
 # test: what does the data look like, which id has more data records 
 gis.mobile %>% 
