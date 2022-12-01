@@ -1,0 +1,234 @@
+---
+title: "Report on choice of trail head"
+author: "Kang"
+date: '2022-11-30'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## 1 Introduction 
+
+The basic hypothesis of this primary analysis is that the visitors choose the trail head (登山口) based on certain factors and random effect. 
+Here the factors are related to how convenient they are to get to the trail head, their purpose, etc. 
+
+We can categorize the factors into two groups. One is route-related factors, like distance, time, and the infrastructure of the trail head. The other one is visitor-related factors, like income, their previous experience, and their preference for the mountain-climbing experience. 
+
+![](ProcData/Model_framework.png)
+
+Besides, the effects of the factors might be different for different groups of visitors. For instance, for mountaineers, the choice of trail head could be important, since that choice determines the experience of their trip. However, for general visitors who do not plan to climb the mountain, maybe the choice doesn't matter. 
+
+So, in this primary analysis, I intended to do: (1) to divide the visitors into different groups according to the purpose of the trip; (2) to collect the data of route-related factors and visitor-related factors for future analysis. 
+
+The basic results are: (1) it is difficult to divide the visitors into different groups because the "dailyid" updates every day, but it is possible to pick out the visitor who go to target area for mountain-climbing - and we can further divide them into the visitors who get to the top and those do not; (2) it is eaiser to get the route-related factors since the visitors generally have home location information, but it is difficult to get visitor-related attribute data since they are generally personal information (like income). 
+Please see the following text for details. 
+
+## 2 Methods and results 
+
+### 2.1 Visitor groups 
+
+Since the "dailyid" of the visitors updates everyday, it is not rigorous to use "a visitor" to refer to a daily ID. For example, the daily ID of a visitor is "A1" in the first day, then it might become "A2" the next day. What we know is only that there are some records for "A1" and some for "A2", but we don't know if the records belong to same visitor or not. However, to make it easier to understand, here we just use the word "visitor" to refer to a unique "dailyid" in this analysis. 
+
+The visitors are categorized into 4 groups: (1) visitors get to the mountain top; (2) visitors climb the mountain but do not get to the top; (3) visitors go to Yamasnashi prefecture or Shizuoka prefecture but do not climb the mountain; (4) visitors do not go to Yamanashi or Shizuoka prefecture. 
+
+To achieve that visitor grouping goal, I need the geographical range of the four groups. (1) Mountain top range: a buffer of 3000 meter from the moutain top point; 
+(2) Mountain-climbing range: the outline of national park, Fujisan mountain; 
+(3) Yamanashi prefecture and Shizuoka prefecture boundary; 
+(4) Out side the Yamanashi and Shizuoka prefecture boundary. 
+
+I download the data mostly from 国土交通省 and 環境省, also some layers from my previous projects. And here is the spatial pattern of the ranges: 
+
+```{r}
+tm_shape(yamashizu) + 
+  tm_polygons(col = "#B4CCD2") + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(col = "#8ABDC9") + 
+  tm_shape(range.top) + 
+  tm_polygons(col = "#04819E")
+```
+
+Add the points and meshes of the trail head and end points of the routes as the following figure. The red dots are the trailheads or route end points; the rectangles in orange represent the mesh layer where the trail heads or route end points are located. 
+
+```{r}
+zoom.bbox <- 
+  st_crop(yamashizu, xmin = 138.5, ymin = 35.3, xmax = 138.9, ymax = 35.5)
+tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) + 
+  tm_polygons(col = "#B4CCD2") + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(col = "#8ABDC9") + 
+  tm_shape(range.top) + 
+  tm_polygons(col = "#04819E") + 
+  tm_shape(mesh.trail.head) + 
+  tm_polygons(col = "orange") + 
+  tm_shape(mt.point) + 
+  tm_dots(col = "red")
+```
+
+Let's zoom in to see the details: 
+
+```{r}
+zoom.bbox <- 
+  st_crop(yamashizu, xmin = 138.7, ymin = 35.32, xmax = 138.82, ymax = 35.42)
+tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) + 
+  tm_polygons(col = "#B4CCD2") + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(col = "#8ABDC9") + 
+  tm_shape(range.top) + 
+  tm_polygons(col = "#04819E") + 
+  tm_shape(mesh.trail.head) + 
+  tm_polygons(col = "orange") + 
+  tm_shape(mt.point) + 
+  tm_dots(col = "red", size = 1) + 
+  tm_text(text = "location", size = 0.5)
+```
+
+Then the visitors with any recorde intesected with the mountain top range will be categorized into "top" visitor group. Similarly, for the other visitors, if they has any recorde intersected with the Fujisan national park range, then they are of "trail" group. The others are categorized into "general" visitor group. 
+
+It should be noted that, to speed up the analysis, I just took part of the raw data for this test analysis. The total number of records of the raw data is 4 million, and that of my sample data is only 50000. 
+
+Here I show one example for each group: 
+
+```{r}
+# 示例一个登顶的，一个爬山没登顶的，一个没爬山的
+temp <- 
+  subset(gis.mobile.smp, dailyid %in% c(
+    # 登顶组的一个例子
+    subset(gis.mobile.smp.group, group == "top")$dailyid[1], 
+    # 爬山组的一个例子
+    subset(gis.mobile.smp.group, group == "trail")$dailyid[2], 
+    # 没爬山组的一个例子
+    subset(gis.mobile.smp.group, group == "general")$dailyid[3]
+  ))
+tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) + 
+  tm_polygons(col = "#B4CCD2") + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(col = "#8ABDC9") + 
+  tm_shape(range.top) + 
+  tm_polygons(col = "#04819E") + 
+  tm_shape(temp) + 
+  tm_dots(col = "group", alpha = 0.9, 
+          palette = c(top = "red", trail = "orange", general = "yellow"), 
+          size = 0.5, shape = 21)
+```
+
+The number of the unique visitors (daily ID) is 441. 
+The distribution of the visitors is as follows: 
+
+```{r}
+table(gis.mobile.smp.group$group)
+```
+
+Of course, most of the users go to the mountain ("trail" group and "top" group), but only about 14% of them get to the top range. 
+
+**Bugs:**
+
+(1) As I mentioned above, we can identify the records of each unique daily ID of each day, but can not identify each unique visitor. So it would be difficult (or impossible) to separate the general visitors out of all visitors. For example, some "general visitors" we identified here might just arrive Yamanashi or Shizuoka prefecture in the first day, then go to climb the mountain next day. 
+
+Even for the "trail" group and "top" group, it is also possible that some visitor might go to the mountain, then stay overnight before get to the top, then get to the top the next day. But because their daily ID updates the next day, so they will have two daily ID (for one visitor). 
+
+This is a challenge: to avoid the double counting because of daily ID update. 
+
+(2) I defined the mountain top range by buffer zone. That can be improved by defining it with elevation / contour line map. 
+
+(3) I defined the mountain range (for the visitors who go to climb the mountain but do not get to the top) by the intersection of national park and Yamanashi & Shizuoka prefectures. 
+
+### 2.2 Choice of the trail head
+
+For this part, we will only focus on the visitors who go to climb the mountain (since we can't identify the "general visitors" precisely as I mentioned in the "Bugs" section above). 
+Similar to the process of identifying the group of users by the intersection of visitor records and the range layers, I identified the choice of the visitors by the interaction between visitor records and the mesh layer of the trail head. 
+
+Here I show the trail head choices of the visitors by different colors. 
+
+```{r}
+zoom.bbox <- 
+  st_crop(yamashizu, xmin = 138.7, ymin = 35.32, xmax = 138.82, ymax = 35.42)
+tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) + 
+  tm_polygons(col = "#B4CCD2") + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(col = "#8ABDC9") + 
+  tm_shape(range.top) + 
+  tm_polygons(col = "#04819E") + 
+  tm_shape(mesh.trail.head) + 
+  tm_polygons(col = "orange") + 
+  tm_shape(gis.mobile.smp.climb) + 
+  tm_dots(
+    col = "route", alpha = 0.6, 
+    palette = c(吉田 = "yellow", 御殿場 = "brown", 須走 = "green", 富士宮 = "blue")
+  ) + 
+  tm_layout(legend.outside = TRUE)
+```
+
+**Bugs** 
+
+(1) A bug here is that some visitor might use two trail heads (even three) - one to going up the mountain, and the other one for going downhill. 
+A potential solution is to keep the trail head for going up based on the information of log time. 
+
+(2) Besides, to choose a trail head doesn't mean they choose a certain route, because some routes are connected. 
+A potential solution is to identify the choice of route by interacting the buffer zone of the route and the logs of the visitors. For instance, if 90% of the logs of a visitor are within the Yoshida route, then the route choice of the visitor would be "Yoshida route". 
+
+(3) Some start points are out of the trail head mesh squares because of uncertainty of the log. Maybe I should add a buffer zone outside the mesh squares to include the log dots. 
+
+### 2.2 Route-related factors
+
+"Route-related factors" include distance, time, etc. 
+Though the previous report of this project has an estimation of the travel cost from different prefectures (areas) to Fujisan area, the raw data of this analysis allows us to get a better estimation - not to mention that even depart from a same place, the time or money cost of different transportation are different. 
+
+Many of the route-related factors are related to home prefecture (or city) of the visitors, so we get the home prefecture of the visitors first. Then I joined the home prefecture information into visitor group and route choice. Now we have a table, each row represent a unique visitor (again, it is actually a unique daily ID), with columns of their daily ID, visitor group, route choice, and home prefecture (showing the head 20 rows of the table). 
+
+```{r}
+knitr::kable(head(gis.mobile.smp.climb.var, 20))
+```
+
+Let's do a basic visualization of the choices to have a straightforward impression of the choices. For example, does people from different prefecture prefer different route? Does people of different visitor groups prefer different route? 
+
+```{r}
+# visitor group * home prefecture 
+gis.mobile.smp.climb.var %>% 
+  group_by(group, prefname) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  ggplot() + 
+  geom_col(aes(prefname, n, fill = group), position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 90))
+
+# visitor group * route choice
+gis.mobile.smp.climb.var %>% 
+  group_by(group, route) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  ggplot() + 
+  geom_col(aes(route, n, fill = group), position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 90))
+
+# route choice * home prefecture 
+gis.mobile.smp.climb.var %>% 
+  group_by(route, prefname) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  ggplot() + 
+  geom_col(aes(prefname, n, fill = route), position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+Here we can see: 
+
+(1) Figure 1: For most of the prefectures, most visitor climb the mountain but do not get to the top range. But the ratio of visitors of trail group and top group can be different. For instance, the ratio is higher for Tokyo than that of Kanagawa prefecture. 
+(2) Figure 2: Most visitors choose 吉田 route. 
+
+(3) Figure 3: No matter where the visitors come from, they prefer 吉田 or 富士宮, but the details can be different. For example, more Kanagawa visitors choose 富士宮 than Tokyo visitors, and that might have something to do with the slightly difference in distance (both Kanagawa and 富士宮 trail head are in the south, while Tokyo and 吉田 trail head are in the north). 
+
+**Bugs** 
+(1) What to do with the NA data? 
+(2) Is it possible to get the visitor-related attributes (e.g., income)? A potential solution is to use the average income of the home city, but that would be very inaccurate. 
+Visitor's previous experience also affect their choice of the route. Some want to try new route, while some visitors might choose the route they are familiar with. 
+(3) How to quantify the attractiveness of the route? Some alternative indicators are the infrastructure of the trail head (it would be more convenient if a trail head has restaurants and parking lots), the information online (a route will be more attractive to many people if you can easily access the detailed information or there are more "いいね" about that route on social media), difficulty. 
+
+**Next step** That is just the basic data needed for estimating the route-related factors data. The next step is to get the time / money / distance of the trip from different prefectures (or cities). 
+
+## Phased target 
+
+(1) To understand how discrete choice model works. I am learning it, but unfortunately still far away from understanding it (bad at statistics!). I work on it in two lines: the theory of discrete choice model; and how to make a model with `mlogit` r package. 
+
+(2) To collect the data required for the potential discrete choice model. As you can see, this analysis gives a basic framework, I will then take more details into consideration and solve the existing bugs. 
