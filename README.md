@@ -1,12 +1,12 @@
-### Introduction 
+## Introduction 
 
 This is a project about national park valuation using big data. 
 
-### Main.R 
+## Main.R 
 
 Main analysis code. 
 
-### RawData folder
+## RawData folder
 
 **prefectures.geojson** 
 The polygons of 47 prefectures in Japan. Downloaded from [地図蔵](https://japonyol.net/editor/article/47-prefectures-geojson.html).
@@ -23,7 +23,7 @@ I added the information of "休日" into the data.
 The data comes from the [NAOJ](https://eco.mtk.nao.ac.jp/koyomi/yoko/2019/rekiyou191.html). 
 I added the information of "休日" into the data.
 
-**Weather folder**
+### Weather folder
 The weather data download from [JMA](https://www.data.jma.go.jp/cpdinfo/extreme/extreme_p.html), including: 
 
 **rn2ola000001lmmc**
@@ -41,10 +41,11 @@ enter [Fujishi official website](https://www.city.fuji.shizuoka.jp/safety/c0306/
 **rn2ola0000022ib4.csv** is the daily weather data of Fujishi, download from: 
 enter [Fujishi official website](https://www.city.fuji.shizuoka.jp/safety/c0306/rn2ola000001qm64.html) > click "2019年7月・月報（csv3.73KB)". 
 
-**rn2ola0000023oly.csv**is the daily weather data of Fujishi, download from: 
+**rn2ola0000023oly.csv**
+is the daily weather data of Fujishi, download from: 
 enter [Fujishi official website](https://www.city.fuji.shizuoka.jp/safety/c0306/rn2ola000001qm64.html) > click "2019年8月・日報（zip30.2KB)". 
 
-**G04-c-11_5338-jgd_GML folder**
+### G04-c-11_5338-jgd_GML folder
 Mesh data of elevation ect. of Fujisan mountain. 
 Download from [MLIT](https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-G04-c.html). 
 Click the "G04-c-11_5338-jgd_GML.zip" of this page. 
