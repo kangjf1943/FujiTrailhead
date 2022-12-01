@@ -12,6 +12,7 @@ library(sf)
 library(tmap)
 library(parallel)
 library(showtext)
+library(patchwork)
 
 # Setting ----
 showtext_auto()
@@ -493,3 +494,48 @@ tm_shape(yamashizu, bbox = st_bbox(zoom.bbox)) +
   ) + 
   tm_layout(legend.outside = TRUE)
 
+### Route-related attributes 
+# like distance, time, money cost, etc. 
+# all related to home city, so we get the home city first 
+# variables for potential model
+gis.mobile.smp.climb.var <- 
+  gis.mobile.smp.climb %>% 
+  st_drop_geometry() %>% 
+  # add visitor group info
+  tibble() %>% 
+  select(dailyid, route, home_prefcode) %>% 
+  distinct() %>% 
+  left_join(gis.mobile.smp.group, by = "dailyid") %>% 
+  # add prefecture info
+  left_join(pref.city.code %>% select(prefcode, prefname) %>% distinct(), 
+            by = c("home_prefcode" = "prefcode")) %>% 
+  mutate(dailyid = paste0(substr(dailyid, 1, 5), "..")) %>% 
+  select(-home_prefcode)
+
+# description stat 
+# visitor group * home prefecture 
+gis.mobile.smp.climb.var %>% 
+  group_by(group, prefname) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  ggplot() + 
+  geom_col(aes(prefname, n, fill = group), position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 90))
+
+# visitor group * route choice
+gis.mobile.smp.climb.var %>% 
+  group_by(group, route) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  ggplot() + 
+  geom_col(aes(route, n, fill = group), position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 90))
+
+# route choice * home prefecture 
+gis.mobile.smp.climb.var %>% 
+  group_by(route, prefname) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  ggplot() + 
+  geom_col(aes(prefname, n, fill = route), position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 90))
