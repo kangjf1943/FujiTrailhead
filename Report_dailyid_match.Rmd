@@ -1,0 +1,267 @@
+---
+title: "Link daily IDs of same visitor"
+author: "Kang"
+date: "2022-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Since daily ID of a visitor update every day, so it is impossible to identify the track of different days of a visitor by the raw data directly. 
+For example, a visitor A might have daily ID "A1" for the first day, while daily "A2" the next day. 
+It doesn't matter to the 日帰り visitors, but for the visitor who go to the mountain in the first day, stay overnight, and return back to mountain foot the next day, it matters. 
+To do research on people's behavior, it is critical to identify the behavior of each visitor. 
+Here I tried to do that connection, **unfortunately, the result is not good**. 
+
+## A case 
+
+Firstly, let me show you my method with a simple case. 
+Let's pick out a user randomly first. Here we choose a visitor with daily ID of "974b58960e72f58a1d7a6a6d32b8f3f13c6c443be863a041af402088cb24fed14c549643c36917d3073e3108a5feed91" on July 1st. 
+
+The hour range of the visitor on that day is: 
+
+```{r}
+range(gis.mobile.case.alllog$hour)
+```
+
+That is perfect, since the hour range covers from the begining of the day to the night (21:00). There is no data after 21:00, so we can assume that the visitor takes a long rest after that time. 
+
+And the following map is his track on July 1st, the text show the hour of the track dots. We can see that the visitor starts from the south (maybe near Fujinomiya), go around the mountain to the north trail head, then climb the mountain. She or he arrives the mountain top at night. 
+
+```{r}
+tm_shape(nps.yamashizu) + 
+  tm_polygons(alpha = 0.1) + 
+  tm_shape(gis.mobile.case.alllog) + 
+  tm_dots(col = "hour", size = 1, alpha = 0.5) + 
+  tm_shape(gis.mobile.case.alllog %>% 
+             arrange(-hour) %>% 
+             group_by(hour) %>% 
+             mutate(rowid = row_number()) %>% 
+             ungroup() %>% 
+             subset(rowid == 1) %>% 
+             subset(hour %in% c(0, 15, 21))) + 
+  tm_text(text = "hour")
+```
+
+Then we get his latest log, which is near the mountain top: 
+
+```{r}
+tm_shape(nps.yamashizu) + 
+  tm_polygons(alpha = 0.1) + 
+  tm_shape(gis.mobile.case.lastlog) + 
+  tm_dots(col = "red", size = 1)
+```
+
+So, what does (s)he do the next day? 
+Firstly, we pick out all the earliest movement within the mountain range the second day (July 2nd), showing in blue dots. 
+Some blue dots are close to the red some are not, I assumed that the blue dots of the same visitor as the red dot should be close, so I made a buffer zone of 3000 meters (which was casually choosed though). 
+
+```{r}
+tm_shape(nps.yamashizu) + 
+  tm_polygons(alpha = 0.1) + 
+  tm_shape(gis.mobile.case.lastlog.buff) + 
+  tm_polygons(col = "orange") + 
+  tm_shape(gis.mobile.secondday.earliest) + 
+  tm_dots(col = "blue", size = 0.1) + 
+  tm_shape(gis.mobile.case.lastlog) + 
+  tm_dots(col = "red", size = 0.3)
+```
+
+Then, I hope the one of the blue dots within the buffer zone belong to the same visitor as the red dot. I check the blue dots by: 
+the target blue dot should be located with the buffer zone of the red dot (the orange circle), and it should have the same user information (like home prefecture, home city, work prefecture, work city, gender, etc.) with the red dot. 
+That map shows the blue dots fullfille the conditions: 
+
+```{r}
+tm_shape(nps.yamashizu) + 
+  tm_polygons(alpha = 0.1) +
+  tm_shape(gis.mobile.case.lastlog.buff) + 
+  tm_polygons(col = "orange") + 
+  tm_shape(gis.mobile.case.lastlog) + 
+  tm_dots(col = "red", size = 0.05) + 
+  tm_shape(gis.mobile.secondday.earliest.inter.sameinfo) + 
+  tm_dots(col = "blue", size = 0.05)
+```
+
+We can not see it very clearly, but from the data, we know there are just one blue dot, which is perfect: 
+
+```{r}
+rbind(
+  gis.mobile.case.lastlog %>% 
+    mutate(source = "red dot") %>% 
+    select(source, dailyid, home_prefcode, home_citycode, 
+           workplace_prefcode, workplace_citycode, gender) %>% 
+    st_drop_geometry(), 
+  gis.mobile.secondday.earliest.inter.sameinfo %>% 
+    mutate(source = "blue dot") %>% 
+    select(source, dailyid, home_prefcode, home_citycode, 
+           workplace_prefcode, workplace_citycode, gender) %>% 
+    st_drop_geometry()
+)
+```
+
+Then I got the track of the target daily ID of the second day, and linked it to the track of the first day: 
+
+```{r}
+tm_shape(nps.yamashizu) + 
+  tm_polygons(alpha = 0.1) + 
+  tm_shape(gis.mobile.case.alllog) + 
+  tm_dots(col = "red", size = 1, alpha = 0.5) + 
+  tm_shape(gis.mobile.case.alllog %>% 
+             arrange(-hour) %>% 
+             group_by(hour) %>% 
+             mutate(rowid = row_number()) %>% 
+             ungroup() %>% 
+             subset(rowid == 1) %>% 
+             subset(hour %in% c(0, 15, 21))) + 
+  tm_text(text = "hour") + 
+  tm_shape(gis.mobile.matchid) + 
+  tm_dots(col = "blue", size = 1, alpha = 0.5) + 
+  tm_shape(gis.mobile.matchid %>% 
+             arrange(-hour) %>% 
+             group_by(hour) %>% 
+             mutate(rowid = row_number()) %>% 
+             ungroup() %>% 
+             subset(rowid == 1) %>% 
+             subset(hour %in% c(6, 13, 20))) + 
+  tm_text(text = "hour")
+```
+
+Seems that (s)he stays in the mountain if the two daily IDs really belong to the same visitor. Let's zoom in to see if it really make sense: 
+
+```{r}
+tm_shape(nps.yamashizu, 
+         bbox = st_bbox(nps.yamashizu) * c(1.001, 1.003, 0.999, 0.996)) + 
+  tm_polygons(alpha = 0.1) + 
+  tm_shape(gis.mobile.matchid) + 
+  tm_dots(col = "blue", size = 1, alpha = 0.5) + 
+  tm_shape(gis.mobile.case.alllog) + 
+  tm_dots(col = "red", size = 1, alpha = 0.5) + 
+  tm_shape(gis.mobile.case.alllog %>% 
+             arrange(-hour) %>% 
+             group_by(hour) %>% 
+             mutate(rowid = row_number()) %>% 
+             ungroup() %>% 
+             subset(rowid == 1)) + 
+  tm_text(text = "hour")
+
+tm_shape(nps.yamashizu, 
+         bbox = st_bbox(nps.yamashizu) * c(1.001, 1.003, 0.999, 0.996)) + 
+  tm_polygons(alpha = 0.1) + 
+  tm_shape(gis.mobile.case.alllog) + 
+  tm_dots(col = "red", size = 1, alpha = 0.5) + 
+  tm_shape(gis.mobile.matchid) + 
+  tm_dots(col = "blue", size = 1, alpha = 0.5) + 
+  tm_shape(gis.mobile.matchid %>% 
+             arrange(-hour) %>% 
+             group_by(hour) %>% 
+             mutate(rowid = row_number()) %>% 
+             ungroup() %>% 
+             subset(rowid == 1) %>% 
+             subset(hour %in% c(6, 9, 15, 20))) + 
+  tm_text(text = "hour")
+```
+
+So, if the two daily ID really belong to the same visitor, then (s)he goes to the right red dot at 21:00 of the first day, then starts from another dot in the left the next day, (s)he goes south, then returns back to north, and goes to the same location as the last dot of first day agan at the end of the second day. 
+
+All right, maybe (s)he wants to stay in the mountain for another day. That is not a problem. 
+
+With this case, I just want to show how the method works. 
+I can give more cases that successfully link two daily IDs together as following figures. 
+
+```{r}
+GetCase("51494eaaf0c2e8f569742478b2eee74a23bb99390e88882ddc38ec47b1af872889777264922927d1f924ca50b64adbb7")
+GetCase("0f1b10a36395c36b8c3d4ff11c44a1ceb5780ec91dc468233d530548a1054150842d63e351d8d9c501945948df411b99")
+```
+
+Then I packed the code into a user-defined function in the following section, and further developed the function, to achieve: 
+for a certain daily ID, how many daily IDs of the next day can be successully linked to it? 
+
+## Expand the case to the data
+
+The packed user-defined function is called `ConnectDailyID` in the source code. 
+I tidied the code somehow, but it is still messy, so I don't really suggest you to read it. 
+Anyway, the function can do: based on a certain daily ID (target daily ID), get the daily ID(s) of the the next day that match it (the target daily ID). 
+For example, let's try the daily ID of the second case above: 
+
+```{r}
+# no daily ID of the next day is successfully linked to the target daily ID
+ConnectDailyID("0f1b10a36395c36b8c3d4ff11c44a1ceb5780ec91dc468233d530548a1054150842d63e351d8d9c501945948df411b99")
+```
+
+We get a one-row `sf`, which is great, it means there is another daily ID of the next day that match our target daily ID. The result is consistant with the result above. So, the function works. 
+
+We can do this to all the daily ID of each day, and further calculate how many daily IDs of the second day can be matched to the target daily IDs of the previous day. 
+
+Let's take the July 1st as "the first day". 
+Here is the result. It is a long list, so I only give the first 6 rows here: 
+
+```{r}
+gis.mobile.firstday.latest %>% 
+  select(dailyid, num_match) %>% 
+  head()
+```
+
+The table shows the number of matched daily IDs of the second day."0" means there is no daily ID of the next day can be matched to the target daily ID of the first day, which indicates that we don't know where the target visitor goes the next day. Thye might go out of the area of the data, or maybe they do not use their cell phone or certain APP related to Agoop the next day so we don't have their data for the next day, maybe their cell phone is out of power the next day... or, simply because there is a problem with this method: imagine a visitor go to the top and stay overnight, then (s)he wakes up the next day and keep going the next day; (s)he goes away about 5000 meters, then (s)he uses his cell phone, so the next log data is collected - however, this log is out of the buffer zone (3000 meters around his last point) so I fail to link the new log to his previous log.
+Or, another possible reason related to my method: the visitor stay in the last log location of the first day, doesn't go anywhere the second day, then move to other place the third day. 
+
+See the numbers of the links of the first-day daily IDs: 
+
+```{r}
+table(gis.mobile.firstday.latest$num_match)
+```
+
+So most of the daily IDs have no matched daily ID for the next day, while some of them have more than one matched IDs. 
+
+Let's simplify the data by assign "yes" to the daily IDs with 1 or more links, and "no" to the 0-link daily IDs. And see the map: 
+
+````{r}
+tm_shape(gis.mobile.firstday.latest) + 
+  tm_dots(col = "num_match_agg", palette = c(yes = "green", no = "orange")) + 
+  tm_shape(nps.yamashizu) + 
+  tm_polygons(alpha = 0.1)
+```
+
+We can see the geograph range of the data is very broad, actually, it goes far away from the Fujisan area (there is a polygon in the figure, which is the Fujisan area). 
+Then we might think ... maybe the reason for that there are so many daily IDs without matched daily IDs of the second day is that: 
+If a visitor do a 日帰り trip, he goes up and goes down, and goes out of the area of Agoop data, then it make sense that we can not find any daily ID that match his last log - because we lose his signal at the end of the first day. 
+
+Based on that assumption, I extract the results of the Fujisan area. However, the result is not good again: 
+
+```{r}
+tm_shape(nps.yamashizu) + 
+  tm_polygons() + 
+  tm_shape(match.log.nps.firstday) + 
+  tm_dots(col = "num_match_agg", size = 0.5, alpha = 0.5, 
+          palette = c(yes = "green", no = "orange"))
+```
+
+So, that is results of the first day (to match the daily IDs of the second day to the daily IDs of the first day) ... what if we try the second day? 
+
+Unfortunately, bomb again: 
+
+```{r}
+tm_shape(nps.yamashizu) + 
+  tm_polygons() + 
+  tm_shape(match.log.nps) + 
+  tm_dots(col = "num_match_agg", size = 0.5, alpha = 0.5, 
+          palette = c(yes = "green", no = "orange"))
+```
+
+## Conclusion 
+
+As you can see, the results were not good: for many visitors, they go to the mountain, they stay somewhere in the mountain, but we just lose their track after the first day. 
+There are some potential way to solve the problem: 
+
+(1) If Agoop company can provide some information that can help us link different daily IDs of the same visitor without breaking relate data regulation? 
+
+(2) How about use the data that daily IDs of the first day can be matched with some daily IDs the next day? Of course, bias generated with that process. And the big data might become small data after that. 
+
+(3) Can we use daily ID rather than trying to figure out the unique "visitor ID"? It is kind of like when doing biodiversity research, it would be better if we have both species and abundance data (that we can calculate some fancy biodiversity index). But the abundance data is not usually available, then we just use the species number data - both biodiversity index and species number are indicator to our target measurement (which is "biodiversity"). Or, put it another way, if we want to do research on animals' food with their body size, our target measurement is "body size", we can use either "height" or "weight" to indicate that measurement. 
+
+(4) How did you deal with it when analyzing the Fujisan mesh data in previous report (section "3 施策評価の統計分析" of 京都大学, 北海道大学, 甲南大学, 国立環境研究所, n.d. 我が国における自然環境施策への効果的な資源動員に向けた研究研究報告書)? 
+
+It is really a tough challenge. I need more time to think about that. 
