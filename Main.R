@@ -139,15 +139,19 @@ yamashizu <-
   st_sf()
 
 # national parks within Yamanashi and Shizuoka
+# bug: need a better defined range of Fujisan range 
+zoom.bbox <- 
+  st_crop(yamashizu, xmin = 138.5, ymin = 35.2, xmax = 138.95, ymax = 35.7)
 nps.yamashizu <- 
   st_read(dsn = "RawData/NationalPark/nps", layer = "nps_all") %>% 
   subset(名称 == "富士箱根伊豆") %>% 
   st_transform(kCRS) %>% 
   st_make_valid() %>% 
-  st_intersection(nps, yamashizu) %>% 
+  st_intersection(y = yamashizu) %>% 
   st_sf() %>% 
   st_union() %>% 
-  st_sf()
+  st_sf() %>% 
+  st_crop(st_bbox(zoom.bbox))
 
 ## Fujisan data ----
 # including some location point and the mesh data 
