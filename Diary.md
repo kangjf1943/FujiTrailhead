@@ -37,3 +37,6 @@ The second problem is to think about our variables for the potential logit model
 
 Done a primary preparation for the potential discrete choice model. Many bugs waiting for solutions, wish I could connect the daily ID with the visitors but that is of course impossible ... Details see the report *Rmd file. The next step is to learn `mlogit` package and get all the variables required for the model. 
 
+### 20221205 
+
+Tried to link the daily IDs of the same visitor, but failed. 
