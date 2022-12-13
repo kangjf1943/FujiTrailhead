@@ -135,7 +135,7 @@ yamashizu <-
   subset(name %in% c("山梨県", "静岡県")) %>% 
   st_transform(kCRS) %>% 
   # union the two prefectures 
-  st_union(yamashizu) %>% 
+  st_union() %>% 
   st_sf()
 
 # national parks within Yamanashi and Shizuoka
@@ -156,8 +156,12 @@ nps.yamashizu <-
 ## Fujisan data ----
 # including some location point and the mesh data 
 # location points
+# bug: 在georeferencing中发现这些点和qgis谷歌地图上的点不能对应？
 mt.point <- 
   c(
+    # Stations 
+    "富士山駅", 35.483468688828026, 138.79559748700663, 
+    "富士宮駅", 35.221476150759315, 138.61518825170347, 
     # 吉田ルート
     "富士スバルライン五合目", 35.399470344873706, 138.73292894376618, 
     # 須走ルート
