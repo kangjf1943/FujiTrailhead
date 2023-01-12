@@ -336,6 +336,7 @@ course.logit <-
 # General ----
 # number of dailyid of each trailhead by pref and distance
 course.logit %>% 
+  filter(!is.na(prefname)) %>% 
   group_by(trailhead, prefname, distance) %>% 
   summarise(n = n()) %>% 
   ungroup() %>% 
@@ -347,6 +348,7 @@ course.logit %>%
   coord_flip()
 # number of dailyid of each trailhead by pref and duration
 course.logit %>% 
+  filter(!is.na(prefname)) %>% 
   group_by(trailhead, prefname, duration) %>% 
   summarise(n = n()) %>% 
   ungroup() %>% 
