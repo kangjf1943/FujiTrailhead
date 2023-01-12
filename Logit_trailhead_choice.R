@@ -374,9 +374,8 @@ course.logit %>%
   coord_flip()
 # relative-diff
 course.logit %>% 
-  filter(!is.na(distance)) %>% 
-  select(trailhead, prefname, distance) %>% 
-#  distinct() %>% mutate(dist = min(distance)) %>%  View()
+  filter(!is.na(distance), !is.na(prefname)) %>% 
+  dplyr::select(trailhead, prefname, distance) %>% 
   group_by(prefname) %>% 
   mutate(distance = distance / min(distance)) %>% 
   ungroup() %>% 
