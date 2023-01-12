@@ -77,7 +77,7 @@ How do we get the values of the predictor variables?
 
 ### 2.3 Model 
 
-The outcome variable and precitor variables are show as follows (part of the input data): 
+The outcome variable and precditor variables are show as follows (part of the input data): 
 
 ```{r}
 course.logit2 %>% 
