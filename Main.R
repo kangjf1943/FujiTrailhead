@@ -42,7 +42,7 @@ raw.mobile <- mclapply(
       select(-plmn)
   }, 
   mc.cores = 4
-) 
+)
 # bug: though parellel saves 50% time, read data still take several seconds 
 # test: check if the "dailyid" of each *.csv file are unique in the whole data set
 # test.raw.mobile <- raw.mobile
