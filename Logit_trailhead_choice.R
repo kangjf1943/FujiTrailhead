@@ -274,6 +274,7 @@ course <- course %>%
 ## Pref names ----
 prefcode <- read_csv("RawData/prefcode_citycode_master_UTF-8.csv") %>%
   dplyr::select(prefcode, prefname) %>%
+  mutate(prefcode = as.integer(prefcode)) %>% 
   distinct()
 
 ## Home distance ----
