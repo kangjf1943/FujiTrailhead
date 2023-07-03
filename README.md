@@ -57,3 +57,12 @@ The unit for cost is Japanese yen.
 **Region_pref.xlsx** 
 Regions and prefectures, from Wikipedia. 
 
+**05k30-2.xlsx**
+Population of each prefecture in 2018. 
+Download from 総務省統計局 > ホーム > 統計データ > 人口推計 > 人口推計の概要，推計結果等 > 人口推計の結果の概要人口推計（2018年（平成30年）10月1日現在） (see [link](https://www.stat.go.jp/data/jinsui/2018np/index.html)), choose "第3表　都道府県，年齢(3区分)，男女別人口―総人口(平成30年10月1日現在)（エクセル：43KB）".
+The original file, a "\*.xls" file, was changed into this "\*.xlsx" file. 
+
+**05k01-2.xlsx**
+Population of each prefecture in 2019. 
+Download from 総務省統計局 > ホーム > 統計データ > 人口推計 > 人口推計の概要，推計結果等 > 人口推計の結果の概要人口推計（2019年（令和元年）10月1日現在） (see [link](https://www.stat.go.jp/data/jinsui/2019np/index.html)), choose "第2表　都道府県，男女別人口及び人口性比―総人口，日本人人口(2019年10月1日現在)（エクセル：20KB）".
+
