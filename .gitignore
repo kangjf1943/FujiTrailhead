@@ -4,8 +4,9 @@
 .Ruserdata
 .DS_Store
 file/
-data-proc/
-data-raw/
+data_proc/
+data_raw/
 # Icon is a file for DropBox sync
 Icon
 .RDataTmp
+_targets/
