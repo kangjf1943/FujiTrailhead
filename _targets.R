@@ -225,15 +225,14 @@ list(
     cost.list, 
     read.csv("data_raw/Cost_evaluation_by_pref.csv")
   ), 
+  # 统计每天来自不同地方的dailyid的数量 
   tar_target(
-    # summary the data: group by date, etc. 
     day.pref.mobile, 
     # 筛选出每天独特的dailyid
     raw.mobile %>% 
       mutate(date = as.Date(paste(year, month, day, sep = "-"))) %>% 
       select(year, date, dayofweek, dailyid, home_prefcode) %>% 
       distinct() %>% 
-      # 统计每天来自不同地方的dailyid的数量
       group_by(year, date, dayofweek, home_prefcode) %>% 
       summarise(num = n()) %>% 
       ungroup()

@@ -40,3 +40,7 @@ Done a primary preparation for the potential discrete choice model. Many bugs wa
 ### 20221205 
 
 Tried to link the daily IDs of the same visitor, but failed. 
+
+### 20231212 
+
+The code has been merged to the "22_AgoopFuji" project. 

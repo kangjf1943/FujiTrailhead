@@ -1,12 +1,14 @@
 ## Introduction 
 
-This is a project about national park valuation using big data. 
+This is a project about national park valuation using big data. This study focus on the trailhead choice. The code has been merged to the "22_AgoopFuji" project. 
 
 ## Main.R 
 
 Main analysis code. 
 
 ## RawData folder
+
+Since raw data is ignored to GitHub uploading, there is a "raw_data_list.txt" providing the raw data file names. And here are data sources of some raw data. 
 
 **prefectures.geojson** 
 The polygons of 47 prefectures in Japan. Downloaded from [地図蔵](https://japonyol.net/editor/article/47-prefectures-geojson.html).
